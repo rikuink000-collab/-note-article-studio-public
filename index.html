@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'none'; font-src 'self'; manifest-src 'self'; media-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; form-action 'none'; base-uri 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Note Studio">
+  <meta name="theme-color" content="#2f7d6d">
+  <meta name="format-detection" content="telephone=no">
+  <title>Note Article Studio</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-title">
+      <span class="app-name">Note Article Studio</span>
+      <span id="current-title" class="current-title"></span>
+    </div>
+    <span id="save-state" class="save-state" aria-live="polite"></span>
+  </header>
+
+  <main id="main">
+    <!-- 記事一覧 -->
+    <section id="view-list" class="view" data-view="list">
+      <button type="button" class="btn primary block" data-action="new-article">＋ 新しい記事を作る</button>
+      <div class="filters">
+        <input type="search" id="list-search" placeholder="検索" aria-label="検索">
+        <select id="list-status" aria-label="制作状況で絞り込み">
+          <option value="">すべての状況</option>
+        </select>
+      </div>
+      <p id="list-summary" class="muted small"></p>
+      <ul id="article-list" class="card-list"></ul>
+    </section>
+
+    <!-- 企画 -->
+    <section id="view-plan" class="view" data-view="plan" hidden>
+      <div class="needs-article">
+        <div class="card">
+          <h2>記事の設定</h2>
+          <label class="field">記事テーマ
+            <input type="text" data-field="theme" placeholder="例：ChatGPTで議事録作成を時短する">
+          </label>
+          <label class="field">対象読者
+            <input type="text" data-field="audience" placeholder="例：AIを使ったことがない会社員">
+          </label>
+          <label class="field">読者の悩み（1行に1つ）
+            <textarea data-field="problems" rows="3" placeholder="例：会議のたびに議事録作成で1時間かかる"></textarea>
+          </label>
+          <label class="field">記事の目的（読み終えた読者ができること）
+            <textarea data-field="goal" rows="2" placeholder="例：議事録の下書きを10分で作れるようになる"></textarea>
+          </label>
+          <label class="field">記事タイプ
+            <select data-field="articleType" id="article-type"></select>
+          </label>
+          <fieldset class="field">
+            <legend>無料・有料</legend>
+            <div class="segmented">
+              <label><input type="radio" name="pricing" value="free" data-field="pricing"><span>無料記事</span></label>
+              <label><input type="radio" name="pricing" value="paid" data-field="pricing"><span>有料記事</span></label>
+            </div>
+          </fieldset>
+          <label class="field paid-only">価格（円・予定）
+            <input type="number" inputmode="numeric" min="0" step="100" data-field="price" placeholder="例：500">
+          </label>
+          <label class="field">制作状況
+            <select data-field="status" class="status-select"></select>
+          </label>
+        </div>
+
+        <div class="card">
+          <h2>構成と見出し</h2>
+          <p class="muted small">記事タイプのテンプレートから構成を作り、自由に編集できます。<span class="paid-only">「有料」にチェックした見出しは有料部分になります。</span></p>
+          <button type="button" class="btn block" data-action="build-outline">テンプレートから構成を作る</button>
+          <ol id="outline-list" class="outline-list"></ol>
+          <button type="button" class="btn block" data-action="add-heading">＋ 見出しを追加</button>
+        </div>
+
+        <div class="card prompt-card" data-prompt="plan">
+          <h2>AI用プロンプト（企画）</h2>
+          <p class="muted small">コピーして Claude などのAIアプリに貼り付けて使います。このアプリからAIには送信しません。</p>
+          <button type="button" class="btn primary block" data-action="copy-prompt" data-stage="plan">企画用プロンプトをコピー</button>
+          <details><summary>内容を見る</summary><pre class="prompt-preview"></pre></details>
+        </div>
+      </div>
+    </section>
+
+    <!-- 執筆 -->
+    <section id="view-write" class="view" data-view="write" hidden>
+      <div class="needs-article">
+        <div class="card">
+          <h2>本文</h2>
+          <button type="button" class="btn block" data-action="insert-outline">構成の見出しを本文に挿入</button>
+          <details class="tips">
+            <summary>書き方のポイント</summary>
+            <ul id="writing-tips"></ul>
+          </details>
+          <label class="field"><span class="free-label">本文（Markdown）</span>
+            <textarea data-field="body.free" rows="16" class="body-input" placeholder="## 見出し&#10;本文を書きます"></textarea>
+          </label>
+          <p class="muted small count" data-count="free"></p>
+          <div class="paid-only">
+            <div class="paid-divider">ここから有料</div>
+            <label class="field">有料部分（Markdown）
+              <textarea data-field="body.paid" rows="16" class="body-input" placeholder="## 見出し&#10;有料部分の本文"></textarea>
+            </label>
+            <p class="muted small count" data-count="paid"></p>
+          </div>
+        </div>
+
+        <div class="card prompt-card" data-prompt="write">
+          <h2>AI用プロンプト（執筆）</h2>
+          <p class="muted small">構成と下書きを含めた執筆依頼文です。AIの出力は内容を確認してから本文に貼り付けてください。</p>
+          <button type="button" class="btn primary block" data-action="copy-prompt" data-stage="write">執筆用プロンプトをコピー</button>
+          <details><summary>内容を見る</summary><pre class="prompt-preview"></pre></details>
+        </div>
+      </div>
+    </section>
+
+    <!-- 公開準備 -->
+    <section id="view-publish" class="view" data-view="publish" hidden>
+      <div class="needs-article">
+        <div class="card">
+          <h2>校正チェック</h2>
+          <p class="muted small">ルールに基づく「確認したほうがよい箇所」の候補です。すべての誤字を見つけられるわけではありません。</p>
+          <button type="button" class="btn block" data-action="run-check">チェックを実行</button>
+          <p id="check-summary" class="check-summary"></p>
+          <ul id="check-list" class="issue-list"></ul>
+        </div>
+
+        <div class="card prompt-card" data-prompt="proofread">
+          <h2>AI用プロンプト（校正）</h2>
+          <button type="button" class="btn primary block" data-action="copy-prompt" data-stage="proofread">校正用プロンプトをコピー</button>
+          <details><summary>内容を見る</summary><pre class="prompt-preview"></pre></details>
+        </div>
+
+        <div class="card">
+          <h2>タイトル</h2>
+          <label class="field">記事タイトル
+            <input type="text" data-field="title" placeholder="タイトルを入力するか、候補から選ぶ">
+          </label>
+          <p class="muted small" id="title-count"></p>
+          <button type="button" class="btn block" data-action="make-titles">タイトル候補を5つ作る</button>
+          <ul id="title-candidates" class="choice-list"></ul>
+        </div>
+
+        <div class="card">
+          <h2>ハッシュタグ</h2>
+          <label class="field">ハッシュタグ（スペース区切り）
+            <input type="text" id="hashtags-input" placeholder="#AI #仕事術" autocapitalize="off">
+          </label>
+          <button type="button" class="btn block" data-action="suggest-tags">テーマと本文から提案を追加</button>
+        </div>
+
+        <div class="card">
+          <h2>見出し画像のプロンプト</h2>
+          <label class="field">雰囲気
+            <select data-field="imageMood" id="image-mood">
+              <option value="">おまかせ（シンプル）</option>
+              <option value="calm">落ち着いた・パステル</option>
+              <option value="pop">明るい・ポップ</option>
+              <option value="tech">テック・近未来</option>
+              <option value="warm">温かい・手描き風</option>
+              <option value="retro">レトロ・ドット絵</option>
+            </select>
+          </label>
+          <button type="button" class="btn block" data-action="make-image-prompt">プロンプトを作る</button>
+          <textarea data-field="imagePrompt" rows="8" class="mono" placeholder="ここに画像生成プロンプトが入ります（編集できます）"></textarea>
+          <button type="button" class="btn block" data-action="copy-field" data-field-name="imagePrompt">画像プロンプトをコピー</button>
+        </div>
+
+        <div class="card">
+          <h2>公開前チェックリスト</h2>
+          <p class="muted small">✓ は自動判定、□ はご自身で確認して印を付ける項目です。</p>
+          <ul id="checklist" class="checklist"></ul>
+        </div>
+
+        <div class="card prompt-card" data-prompt="publish">
+          <h2>AI用プロンプト（公開準備）</h2>
+          <p class="muted small">タイトル・ハッシュタグ・画像プロンプト・紹介文をまとめて依頼します。</p>
+          <button type="button" class="btn primary block" data-action="copy-prompt" data-stage="publish">公開準備用プロンプトをコピー</button>
+          <details><summary>内容を見る</summary><pre class="prompt-preview"></pre></details>
+        </div>
+
+        <div class="card">
+          <h2>Markdownで保存</h2>
+          <p class="muted small">iPhoneでは保存先として「ファイル」アプリが開きます。noteへの投稿は、ご自身でnoteの編集画面に貼り付けて行ってください（このアプリは自動投稿しません）。</p>
+          <button type="button" class="btn primary block" data-action="export-md" data-part="all">全文を保存（.md）</button>
+          <div class="paid-only btn-row">
+            <button type="button" class="btn" data-action="export-md" data-part="free">無料部分を保存</button>
+            <button type="button" class="btn" data-action="export-md" data-part="paid">有料部分を保存</button>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn" data-action="copy-md" data-part="all">全文をコピー</button>
+            <button type="button" class="btn share-only" data-action="share-md" data-part="all">共有…</button>
+          </div>
+          <div class="paid-only btn-row">
+            <button type="button" class="btn" data-action="copy-md" data-part="free">無料部分をコピー</button>
+            <button type="button" class="btn" data-action="copy-md" data-part="paid">有料部分をコピー</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- データ（バックアップ） -->
+    <section id="view-data" class="view" data-view="data" hidden>
+      <div class="card">
+        <h2>バックアップ</h2>
+        <p id="storage-status" class="small"></p>
+        <p id="backup-status" class="small"></p>
+        <p class="muted small">記事はこの端末のブラウザ内にだけ保存されています。iPhoneのSafariでは、しばらく使わないとデータが消えることがあるため、定期的にバックアップを保存してください。</p>
+        <button type="button" class="btn primary block" data-action="backup-download">バックアップを保存（JSON）</button>
+        <button type="button" class="btn block share-only" data-action="backup-share">バックアップを共有…</button>
+        <div id="recovery-box" class="notice warn" hidden>
+          <p id="recovery-text"></p>
+          <button type="button" class="btn block" data-action="recovery-download">退避したデータを保存</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>復元</h2>
+        <p class="muted small">保存したバックアップファイル（.json）を選びます。復元する前に、追加・上書きされる件数を確認できます。</p>
+        <label class="btn block file-btn">バックアップファイルを選ぶ
+          <input type="file" id="restore-file" accept=".json,application/json">
+        </label>
+        <p id="restore-error" class="notice error" role="alert" hidden></p>
+        <div id="restore-preview" class="restore-preview" hidden>
+          <p id="restore-summary"></p>
+          <ul id="restore-details" class="issue-list"></ul>
+          <button type="button" class="btn block" data-action="backup-download">先に今のデータをバックアップ</button>
+          <button type="button" class="btn primary block" data-action="restore-merge">追加・上書きで復元</button>
+          <p class="muted small">今ある記事は残し、同じ記事はバックアップの内容で上書きします。</p>
+          <button type="button" class="btn danger block" data-action="restore-replace">すべて置き換えて復元</button>
+          <p class="muted small">今ある記事をすべて削除し、バックアップの内容に置き換えます。</p>
+          <button type="button" class="btn block" data-action="restore-cancel">やめる</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>このアプリについて</h2>
+        <ul class="small about">
+          <li>外部のAIやサーバーには一切通信しません。AIを使う場合は、プロンプトをコピーしてご自身のAIアプリに貼り付けてください。</li>
+          <li>noteへの自動ログインや自動投稿は行いません。</li>
+          <li>校正チェックはルールに基づく候補の提示です。最終確認はご自身で行ってください。</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 記事が選ばれていないとき -->
+    <div id="no-article" class="card empty" hidden>
+      <p>記事が選ばれていません。</p>
+      <button type="button" class="btn primary block" data-action="new-article">＋ 新しい記事を作る</button>
+      <button type="button" class="btn block" data-action="go" data-view="list">記事一覧から選ぶ</button>
+    </div>
+  </main>
+
+  <nav class="tabbar" aria-label="画面切り替え">
+    <button type="button" data-action="go" data-view="list"><span class="tab-icon">☰&#xFE0E;</span>一覧</button>
+    <button type="button" data-action="go" data-view="plan"><span class="tab-icon">◎&#xFE0E;</span>企画</button>
+    <button type="button" data-action="go" data-view="write"><span class="tab-icon">✎&#xFE0E;</span>執筆</button>
+    <button type="button" data-action="go" data-view="publish"><span class="tab-icon">✓&#xFE0E;</span>公開準備</button>
+    <button type="button" data-action="go" data-view="data"><span class="tab-icon">⇅</span>データ</button>
+  </nav>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="js/planner.js"></script>
+  <script src="js/checker.js"></script>
+  <script src="js/publish.js"></script>
+  <script src="js/prompts.js"></script>
+  <script src="js/exporter.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
